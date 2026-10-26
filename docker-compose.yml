@@ -1,0 +1,14 @@
+services:
+  notevault:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Set your real team ID before building (see project/README.md) — this seeds a
+      # per-team traceable marker into the app's data, same purpose as the per-student
+      # flags used in the weekly labs. TEAM_SALT stays instructor-side in a real cohort.
+      - TEAM_ID=${TEAM_ID:-REVIVE}
+      - TEAM_SALT=${TEAM_SALT:-notevault-anti-copy-dev-salt}
+    # For quick iteration you can mount the source:
+    # volumes:
+    #   - ./:/app

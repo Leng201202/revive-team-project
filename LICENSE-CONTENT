@@ -1,0 +1,31 @@
+COURSE MATERIAL LICENCE
+
+The course material in this repository — worksheets, lab guides, lecture slides,
+exam papers, CTF briefs, the project brief, the quizzes and the prose
+documentation — is licensed under
+
+    Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+    (CC BY-NC-SA 4.0)
+
+    Full text:  https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+    Summary:    https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+You are free to share and adapt it, provided you give appropriate credit,
+do not use it commercially, and license your adaptations the same way.
+
+The PLATFORM CODE is not covered by this licence — it is MIT. See LICENSE.
+
+Attribute as:
+    "KOSEN69 Software Security — Nutthakorn Chalaemwongwan, KOSEN-KMITL,
+     CC BY-NC-SA 4.0"
+
+NOT COVERED BY THIS LICENCE
+    Third-party vulnerable applications the labs point students at (OWASP Juice
+    Shop, DVWA, crAPI and others) keep their own licences. This course
+    REFERENCES them; it does not redistribute them.
+
+    Standards and frameworks the material aligns to — OWASP Top 10, OWASP Top 10
+    for LLM Applications, OWASP API Security Top 10, MITRE CWE/ATT&CK, SLSA —
+    belong to their respective organisations.
+
+    See NOTICE for bundled third-party files.

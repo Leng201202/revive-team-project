@@ -1,0 +1,31 @@
+THIRD-PARTY FILES BUNDLED IN THIS REPOSITORY
+
+Everything listed here is redistributed under its own licence, not under this
+repository's LICENSE or LICENSE-CONTENT.
+
+--------------------------------------------------------------------------------
+Inter (variable web font)
+    Files:    labs/live-quiz/static/fonts/InterVariable.woff2
+    Licence:  SIL Open Font License 1.1
+    Text:     labs/live-quiz/static/fonts/OFL-InterVariable.txt
+    Source:   https://github.com/rsms/inter  (v4.1)
+    Copyright (c) 2016 The Inter Project Authors
+
+    Self-hosted rather than loaded from a font CDN because the content plane
+    runs under `font-src 'self'`, which permits no third-party origin.
+
+--------------------------------------------------------------------------------
+Socket.IO client
+    Files:    labs/live-quiz/static/socket.io.min.js
+    Licence:  MIT
+    Version:  4.7.5  (c) 2014-2024 Guillermo Rauch
+    Source:   https://github.com/socketio/socket.io-client
+
+    Vendored for the same reason: the live game's pages carry
+    `script-src 'self'` and cannot fetch a CDN.
+
+--------------------------------------------------------------------------------
+NOT bundled, only referenced
+    OWASP Juice Shop, DVWA, crAPI and the other deliberately vulnerable targets
+    the labs use are pulled by the student from their own upstreams at lab time.
+    They are not copied into this repository and keep their own licences.

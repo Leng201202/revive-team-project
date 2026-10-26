@@ -1,0 +1,8 @@
+# NoteVault dependencies. (Intentionally pinned to older versions — part of the
+# supply-chain assessment is to find and remediate the vulnerable ones.)
+Flask==2.0.1
+Werkzeug==2.0.1
+Jinja2==3.0.1
+PyJWT==1.7.1
+requests==2.25.1
+urllib3==1.26.4

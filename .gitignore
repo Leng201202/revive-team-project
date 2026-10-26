@@ -1,0 +1,28 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Local runtime data
+*.db
+*.sqlite
+*.sqlite3
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
+
+# Generated local evidence that may contain sensitive data
+evidence/private/
