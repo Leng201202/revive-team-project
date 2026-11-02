@@ -16,3 +16,4 @@ sbom*.json
 LICENSE-CONTENT
 NOTICE
 .DS_Store
+PROJECT-GUIDE.local.md

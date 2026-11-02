@@ -11,8 +11,9 @@ security weaknesses, remediate them, and harden its build and release process.
 
 | Member | Student ID | Responsibility |
 |---|---|---|
-| TODO | TODO | TODO |
-| TODO | TODO | TODO |
+| Panaikron Marohabut | 6631503126 | TBD |
+| Sai Shang Hlang | 6631503129 | TBD |
+| Zaw Phyo Aung | 6631503130 | TBD |
 
 ## Run the baseline
 
