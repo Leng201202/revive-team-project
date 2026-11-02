@@ -291,7 +291,7 @@ All findings verified live against the Docker container
 | Location | `requirements.txt` |
 | Reproduction | `pip-audit -r requirements.txt` → **81 known vulnerabilities in 7 packages** (Flask 2.0.1, Werkzeug 2.0.1, Jinja2 3.0.1, PyJWT 1.7.1, requests 2.25.1, urllib3 1.26.4, idna 2.10) |
 | Impact | Attackers use published exploits; no new bug needed |
-| Evidence | `evidence/private/F-14.txt` |
+| Evidence | `evidence/F-14.txt` |
 
 ### Finding F-15 — Dockerfile misconfigurations
 | Field | Value |
@@ -302,7 +302,7 @@ All findings verified live against the Docker container
 | Location | `Dockerfile` |
 | Reproduction | `docker history` → `ENV APP_SECRET=notevault-dev-secret` visible in layer; `docker exec … whoami` → `root`; `FROM python:3.12` unpinned; `COPY . .` drags whole context; `pip install` without `--require-hashes` |
 | Impact | Root compromise inside container; secret recoverable from image; unpinned supply chain |
-| Evidence | `evidence/private/F-15.txt` |
+| Evidence | `evidence/F-15.txt` |
 
 ### Finding F-16 — No logging or audit trail
 | Field | Value |
@@ -313,7 +313,7 @@ All findings verified live against the Docker container
 | Location | `app.py` (no `logging` anywhere) |
 | Reproduction | After the full attack session, `docker logs` shows only werkzeug access lines — no auth events, no alerts, no audit |
 | Impact | Breaches are invisible; repudiation impossible; no detection |
-| Evidence | `evidence/private/F-16.txt` |
+| Evidence | `evidence/F-16.txt` |
 
 ### Finding F-17 — `seed()` drops all data on every restart
 | Field | Value |

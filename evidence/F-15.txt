@@ -1,0 +1,13 @@
+$ docker history revive-team-project-notevault
+IMAGE          CREATED          CREATED BY                                      SIZE      COMMENT
+72d2e6f6f479   55 minutes ago   CMD ["python" "app.py"]                         0B        buildkit.dockerfile.v0
+<missing>      55 minutes ago   EXPOSE [8080/tcp]                               0B        buildkit.dockerfile.v0
+<missing>      55 minutes ago   RUN /bin/sh -c pip install -r requirements.t...   23MB      buildkit.dockerfile.v0
+<missing>      55 minutes ago   COPY . . # buildkit                             119kB     buildkit.dockerfile.v0
+<missing>      3 days ago       WORKDIR /app                                    8.19kB    buildkit.dockerfile.v0
+<missing>      3 days ago       ENV APP_SECRET=notevault-dev-secret             0B        buildkit.dockerfile.v0
+   ^^^^^^^^^ secret baked into image layer — visible to anyone with the image
+
+$ docker exec revive-team-project-notevault-1 whoami
+root
+   ^^^^^ process runs as root — no USER directive in Dockerfile
