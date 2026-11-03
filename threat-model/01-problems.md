@@ -305,7 +305,7 @@ ports:
 The Flask server speaks plain HTTP on 8080 and compose exposes it directly —
 there is no TLS terminator anywhere in front.
 
-**Links:** flows F1/F3 · DFD: TB1 · STRIDE row 1 · **W3/W5 transport** · CWE-319 · OWASP A02:2025
+**Links:** flows F1/F3 · DFD: TB1 · STRIDE row 1 · **W3/W5 transport** · CWE-319 · OWASP A04:2025
 
 ### P-15 · No CSRF tokens — other sites can issue requests as you
 
@@ -384,8 +384,9 @@ requests==2.25.1
 urllib3==1.26.4
 ```
 Every pin is an old version with published advisories — e.g. PyJWT 1.7.1's
-key-confusion (CVE-2022-29217), Werkzeug 2.0.1's debugger issue. To be
-confirmed and enumerated with Trivy/pip-audit in Phase 2.
+key-confusion (CVE-2022-29217) and Werkzeug 2.0.1 advisories. Phase 2 confirmed
+the vulnerable baseline with pip-audit; the captured output is in
+`evidence/F-14.txt`.
 
 **Links:** `requirements.txt` · DFD: TB4 · STRIDE row 12 · **W12 SCA** · CWE-1395 · OWASP A03:2025
 
@@ -432,7 +433,7 @@ if __name__ == "__main__":
 "only if empty" check and no persistent volume, so data never survives a
 restart.
 
-**Links:** startup routine · DFD: D1/D2 · STRIDE row 10 (D) · **design/availability** · CWE-400-adjacent · OWASP A06:2025
+**Links:** startup routine · DFD: D1/D2 · STRIDE row 10 (D) · **design/availability** · CWE-664 · OWASP A06:2025
 
 ---
 
@@ -453,13 +454,13 @@ restart.
 | P-11 | No rate limiting | P1·F1 | S,D | W10 | 307 | API4 | Medium |
 | P-12 | Token never expires / can't revoke | D3 | S | W6 | 613 | A07 | Medium |
 | P-13 | Cookie missing flags | D3 | I,S | W5 | 1004/614 | A05/A07 | Medium |
-| P-14 | Plain HTTP, no TLS | TB1 | I | W3 | 319 | A02 | Medium |
+| P-14 | Plain HTTP, no TLS | TB1 | I | W3 | 319 | A04 | Medium |
 | P-15 | No CSRF protection | F1/F3 | — | W5 | 352 | A01 | Medium |
 | P-16 | debug=True | P0·TB4 | I,E | W2 | 489/215 | A02 | High |
 | P-17 | Dockerfile misconfigs ×5 | TB4·D4 | I,E | W13 | 250/798/1357 | A02 | High |
 | P-18 | Vulnerable dependencies | TB4 | (all) | W12 | 1395 | A03 | per CVE |
 | P-19 | No logging at all | P0 | R | W15 | 778 | A09 | Medium |
-| P-20 | seed() wipes on restart | D1/D2 | D | design | ~400 | A06 | Low |
+| P-20 | seed() wipes on restart | D1/D2 | D | design | 664 | A06 | Low |
 
 ## Checked — confirmed absent (not forgotten)
 

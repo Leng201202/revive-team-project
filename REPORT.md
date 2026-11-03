@@ -11,20 +11,39 @@
 | Members (name + ID) | Panaikron Marohabut (6631503126), Sai Shang Hlang (6631503129), Zaw Phyo Aung (6631503130) |
 | Target application | NoteVault (Python/Flask) |
 | Repository URL | https://github.com/Leng201202/revive-team-project |
-| Demo video URL | |
-| Date | |
+| Demo video URL | **Add the unlisted YouTube/Drive URL after recording with `script.md`.** |
+| Date | 3 November 2026 |
 
 ## AI-tool usage disclosure
 *Academic integrity: state how you used any AI tools (ChatGPT, Copilot, etc.) — e.g. searching, coding, translating, drafting. "None" is a valid answer.*
 
 | Tool | How it was used |
 |---|---|
-| | |
+| OpenAI Codex | Repository audit, code-remediation assistance, regression-test drafting, CI/SBOM workflow drafting, and report editing. The team remains responsible for reviewing the code, running the demo, and verifying every submitted claim. |
 
 ---
 
 ## 1. Executive Summary
-*(½ page) What the app is, how many findings by severity, and the overall risk before vs. after your fixes.*
+
+NoteVault is a Python/Flask note-taking application with JWT cookie sessions,
+SQLite storage, an admin API, search, and note export. Testing of the supplied
+baseline identified **19 findings: 3 Critical, 10 High, 5 Medium, and 1 Low**.
+The most serious paths allowed unauthenticated SQL-injection login bypass,
+database extraction, admin-token forgery, and authenticated OS command
+execution as root. Several weaker controls—MD5 password storage, missing
+cookie flags, stored XSS, and excessive admin data—made those primary attacks
+substantially more damaging.
+
+The remediation branch removes shell execution, parameterizes every query,
+enforces ownership and server-selected roles, escapes untrusted output, uses
+Werkzeug's salted slow password KDF, and issues short-lived revocable JWTs from
+a runtime-only secret. It adds CSRF protection, login throttling, security
+headers, audit events, non-destructive persistent database initialization, and
+21 regression tests. The build now uses hash-locked current dependencies, a
+digest-pinned base image, a non-root/read-only container, a CycloneDX SBOM, and
+CI gates for SAST, SCA, secret scanning, and HIGH/CRITICAL container findings.
+Residual deployment risks are TLS termination, the single-process in-memory
+rate limiter, and completion of the external GitHub tag/sign/video steps.
 
 ---
 
@@ -123,8 +142,9 @@ flow in principle; we call it out where it matters most.*
 2. **SQL injection (login bypass + `/search` UNION dump)** — High × Critical.
    String-formatted queries allow auth bypass and dumping every user's
    credentials and every note.
-3. **JWT session forgery (`alg=none` + hardcoded weak secret)** — High × High.
-   Forge an admin token without any secret; secret is also committed to source.
+3. **JWT session forgery via the hardcoded weak secret** — High × High. The
+   committed key lets an attacker mint an admin HS256 token. Although `none`
+   was incorrectly allow-listed, PyJWT 1.7.1 rejected the tested unsigned token.
 4. **Privilege escalation via mass-assigned `role` on `/register`** — High ×
    High. Self-provisioned admin reaches the full user/hash dump.
 5. **IDOR on `GET /api/notes/<id>`** — High × Medium–High. Sequential ids with
@@ -287,7 +307,7 @@ All findings verified live against the Docker container
 |---|---|
 | CWE | CWE-1395 |
 | OWASP 2025 | A03 |
-| Severity | per CVE |
+| Severity | High |
 | Location | `requirements.txt` |
 | Reproduction | `pip-audit -r requirements.txt` → **81 known vulnerabilities in 7 packages** (Flask 2.0.1, Werkzeug 2.0.1, Jinja2 3.0.1, PyJWT 1.7.1, requests 2.25.1, urllib3 1.26.4, idna 2.10) |
 | Impact | Attackers use published exploits; no new bug needed |
@@ -318,7 +338,7 @@ All findings verified live against the Docker container
 ### Finding F-17 — `seed()` drops all data on every restart
 | Field | Value |
 |---|---|
-| CWE | CWE-400 (design/availability) |
+| CWE | CWE-664 (improper resource lifetime control) |
 | OWASP 2025 | A06 |
 | Severity | Low |
 | Location | `app.py:63,208` |
@@ -326,45 +346,210 @@ All findings verified live against the Docker container
 | Impact | Anyone who can crash the app (or any ops restart) destroys all data |
 | Evidence | ![F-17](evidence/img/F-17.png) |
 
+### Finding F-18 — Passwords stored with fast, unsalted MD5
+| Field | Value |
+|---|---|
+| CWE | CWE-916 / CWE-327 |
+| OWASP 2025 | A04 |
+| Severity | High |
+| Location | Baseline `app.py:68-69,117` |
+| Reproduction | The baseline stores `hashlib.md5(password.encode()).hexdigest()`; known inputs reproduce the exact database hashes without a per-user salt |
+| Impact | A database or admin-response leak becomes rapid offline password cracking; equal passwords also have equal hashes |
+| Evidence | `evidence/F-18.txt` |
+
+### Finding F-19 — Plain HTTP transport
+| Field | Value |
+|---|---|
+| CWE | CWE-319 |
+| OWASP 2025 | A04 |
+| Severity | Medium |
+| Location | Baseline `app.py:209`, `docker-compose.yml:5-6` |
+| Reproduction | The Flask server listens without TLS on `http://0.0.0.0:8080`, and Compose publishes that port directly |
+| Impact | A network-positioned attacker can observe or modify credentials, cookies, notes, and responses |
+| Evidence | `evidence/F-19.txt` |
+
 ---
 
 ## 5. Remediation  *(25 pts)*
 
-Per finding: the fix, **before/after** code, and the commit that implements it.
+The changes are on `security-remediation`. Application controls and tests are
+in commit `deb2381` (`F-01`–`F-13`, `F-16`–`F-19`). Dependency, container,
+SBOM, CI, signing, and provenance controls are in `38ecdba` (`F-14`, `F-15`,
+`F-17`, `F-19`). The table maps every finding to its regression proof.
 
-### Fix for F-01
+### Representative before/after changes
+
+**F-01 — remove the OS command interpreter:**
+
 ```diff
-- vulnerable line
-+ fixed line
+- out = subprocess.run("echo exporting notes as " + fmt, shell=True, ...)
++ if output_format not in {"txt", "json"}:
++     return "unsupported export format", 400
++ rows = get_db().execute("SELECT ... WHERE owner = ?", (current_user(),))
 ```
-- **Why this fixes it:** …
-- **Commit:** `<hash>`
-- **Proof the exploit now fails:** (screenshot)
+
+No attacker input reaches a shell. Export formats are an exact allow-list and
+the response is generated in Python.
+
+**F-02/F-03 — parameterize SQL:**
+
+```diff
+- q = "SELECT * FROM users WHERE username = '%s' ..." % username
+- row = con.execute(q).fetchone()
++ row = get_db().execute(
++     "SELECT username, password_hash FROM users WHERE username = ?", (username,)
++ ).fetchone()
+```
+
+Input remains data instead of becoming SQL grammar. Search also escapes the
+`LIKE` wildcard characters before using a bound parameter.
+
+**F-07 — enforce object ownership in the query:**
+
+```diff
+- SELECT id,owner,title,body FROM notes WHERE id = ?
++ SELECT id,owner,title,body FROM notes WHERE id = ? AND owner = ?
+```
+
+The database returns a note only when both its identifier and authenticated
+owner match.
+
+**F-09 — restore Jinja output encoding:**
+
+```diff
+- {{ notes_html|safe }}
++ {% for note in notes %}{{ note.title }}: {{ note.body }}{% endfor %}
+```
+
+Titles and bodies are passed as template data and automatically HTML-escaped;
+the CSP is a second layer of defense.
+
+**F-06/F-10 — secure and bound the session:**
+
+```diff
+- SECRET = "notevault-dev-secret"
+- jwt.decode(token, SECRET, algorithms=["HS256", "none"])
+- resp.set_cookie("session", token)
++ jwt.decode(token, runtime_secret, algorithms=["HS256"],
++            audience="notevault-web", issuer="notevault",
++            options={"require": ["sub", "iat", "exp", "jti", "aud", "iss"]})
++ resp.set_cookie("session", token, httponly=True, secure=True,
++                 samesite="Strict", max_age=900)
+```
+
+The key is supplied only at runtime, the algorithm and claims are pinned, each
+token expires after 15 minutes, logout stores its `jti` in a revocation table,
+and browser cookie controls reduce theft and cross-site use.
+
+### Finding-to-fix traceability
+
+| Finding | Implemented control | Regression proof |
+|---|---|---|
+| F-01 | Removed `subprocess` and `shell=True`; `txt/json` allow-list | `test_f01_export_command_injection_is_rejected` |
+| F-02 | Parameterized login query and constant-time-style dummy hash check | `test_f02_login_sql_injection_fails` |
+| F-03 | Parameterized `LIKE`, escaped wildcards, fixed template | `test_f03_search_union_injection_fails` |
+| F-04 | Server always inserts role `user` | `test_f04_registration_ignores_attacker_role` |
+| F-05 | `UNIQUE COLLATE NOCASE` username constraint | `test_f05_duplicate_admin_registration_is_blocked` |
+| F-06 | Runtime 32+ character key; HS256 only; required claims | `test_f06_forged_jwt_with_old_secret_is_rejected` |
+| F-07 | Note query includes authenticated owner | `test_f07_idor_returns_not_found_for_another_users_note` |
+| F-08 | Admin DTO selects only id, username, role | `test_f08_admin_response_excludes_password_hash` |
+| F-09 | Jinja autoescaping plus restrictive CSP | `test_f09_stored_xss_is_escaped` |
+| F-10 | 15-minute JWT, audience/issuer/JTI, revocation, cookie flags | `test_f10_session_has_flags_claims_and_logout_revokes` |
+| F-11 | Five failures/minute/IP limiter with 429/Retry-After | `test_f11_login_rate_limit_returns_429` |
+| F-12 | Double-submit CSRF token and Origin validation on every POST | `test_f12_csrf_is_required_and_origin_checked` |
+| F-13 | Gunicorn entry point, generic 500 response, debug disabled | `test_f13_debug_disabled_and_errors_are_generic` |
+| F-14 | Current direct pins plus complete SHA-256 lockfile | `test_f14_dependencies_are_upgraded`; `pip-audit` clean |
+| F-15 | Digest pin, non-root UID, read-only FS, dropped capabilities, narrow COPY | `test_f15_dockerfile_is_hardened` |
+| F-16 | Authentication, admin, CSRF, export, and note audit events | `test_f16_security_events_are_logged` |
+| F-17 | `CREATE TABLE IF NOT EXISTS`, seed only when empty, named volume | `test_f17_database_initialization_preserves_existing_data` |
+| F-18 | Werkzeug salted `scrypt` password hashes | `test_weak_md5_password_storage_is_replaced` |
+| F-19 | Loopback-only container binding, Secure cookie and HSTS; TLS required at deployment edge | `test_security_headers_are_present`; deployment check |
+
+Local verification on 3 November 2026: **21 tests passed**, Bandit reported
+zero findings, and pip-audit reported **no known vulnerabilities**.
 
 ---
 
 ## 6. Supply-Chain Hardening  *(15 pts)*
-- **SBOM** (CycloneDX) generated — attach `sbom.json`, note component count.
-- **Artifact signed & verified** with Cosign — paste the `cosign verify` output.
-- One-paragraph **SLSA** self-assessment (which level, why).
+
+- `requirements.lock` pins the complete production graph and includes SHA-256
+  hashes. Docker installs it with `--require-hashes`.
+- [`supply-chain/sbom.cdx.json`](supply-chain/sbom.cdx.json) is a validated,
+  reproducible **CycloneDX 1.6** SBOM containing **9 components**.
+- The base image is `python:3.12.16-slim-bookworm` pinned to manifest digest
+  `sha256:e697c818…d9d337`.
+- The release workflow builds and pushes an immutable GHCR image, keyless-signs
+  `image@digest` with Cosign/OIDC, attaches the CycloneDX attestation, generates
+  GitHub build provenance, verifies the signature, and uploads
+  `cosign-verify.txt` as evidence.
+
+**Signing status:** repository automation is complete; the signature itself is
+created only when a team member pushes a `v*` tag. After that run, download the
+`release-security-evidence` artifact and add its `cosign-verify.txt` output or
+screenshot here. Do not claim the image is signed before that workflow passes.
+
+**SLSA self-assessment:** the tagged GitHub build targets **SLSA Build Level 2**:
+the build runs on a hosted build service and produces authenticated provenance
+bound to the image digest. It is not claimed as Level 3 because the workflow
+still depends on version-tagged third-party Actions and has not undergone a
+formal hardened-build-platform review.
 
 ---
 
 ## 7. Security CI Pipeline  *(10 pts)*
-- Link to the GitHub Actions workflow (SAST + SCA + secret scanning).
-- Screenshot of a build **failing** on a HIGH/CRITICAL finding.
-- How the gate is configured (what fails the build).
+
+Workflow: [`.github/workflows/security.yml`](.github/workflows/security.yml).
+
+| Gate | Tool | Failure condition |
+|---|---|---|
+| Regression | Pytest | Any functional/security test fails |
+| SAST | Bandit | Any HIGH-severity finding (`-lll`) |
+| SCA | pip-audit | Any known vulnerable locked dependency |
+| Secrets | Gitleaks v3 | Any verified secret pattern in history/diff |
+| Container SCA | Trivy | Any fixed HIGH or CRITICAL OS/library vulnerability |
+| SBOM | CycloneDX | Generation, JSON check, or schema validation fails |
+
+The workflow runs on pushes to `main`/`security-remediation` and pull requests
+to `main`. Before submission, capture one deliberately failing temporary-branch
+run and the final passing run as screenshots; do not weaken the gates simply to
+obtain green status.
 
 ---
 
 ## 8. Conclusion & Reflection  *(5 pts — clarity)*
-- Residual risks and what you'd harden next.
-- Lessons learned.
+
+The baseline showed how apparently separate weaknesses form attack chains:
+SQL injection or JWT forgery reaches the admin hash dump; weak MD5 then turns a
+temporary access bug into reusable credentials; XSS plus a readable,
+non-expiring cookie creates durable account takeover; command injection becomes
+critical because the container runs as root. The main lesson is that secure
+code, identity controls, runtime confinement, and supply-chain evidence must be
+treated as one system rather than four independent checklists.
+
+Residual risks are explicit. Production still needs TLS termination and network
+policy outside this single-container teaching repository. The in-memory login
+limiter is appropriate only for the configured single Gunicorn worker; a scaled
+deployment should use a shared Redis-backed limiter. Default course passwords
+must never be used outside the local demo. Future work should add centralized
+log shipping/alerts, database encryption/backups, action references pinned to
+full commit SHAs, periodic key/secret rotation, and an independent penetration
+retest.
 
 ---
 
 ## Appendix
-- Tools used, references (OWASP/CWE links), and the team's task split.
+
+**Tools:** curl, Docker/Compose, Pytest, Bandit, pip-audit, CycloneDX,
+Gitleaks, Trivy, Cosign, GitHub Actions, SQLite, and browser developer tools.
+
+**Primary references:** OWASP Top 10:2025, OWASP API Security Top 10:2023,
+MITRE CWE, Flask/Werkzeug security documentation, CycloneDX 1.6, Sigstore
+Cosign, and SLSA v1.0.
+
+**Proposed task split—team must confirm before submission:** Panaikron owns the
+threat model/finding narration; Sai owns application fixes/regression tests;
+Zaw owns container/SBOM/CI/signing. All three review the report and appear in
+the demo video.
 
 ---
 

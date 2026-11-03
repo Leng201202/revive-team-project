@@ -11,17 +11,27 @@ security weaknesses, remediate them, and harden its build and release process.
 
 | Member | Student ID | Responsibility |
 |---|---|---|
-| Panaikron Marohabut | 6631503126 | TBD |
-| Sai Shang Hlang | 6631503129 | TBD |
-| Zaw Phyo Aung | 6631503130 | TBD |
+| Panaikron Marohabut | 6631503126 | Threat model, finding narration, report review (confirm with team) |
+| Sai Shang Hlang | 6631503129 | Application remediation and regression tests (confirm with team) |
+| Zaw Phyo Aung | 6631503130 | Container, SBOM, CI/signing and video (confirm with team) |
 
-## Run the baseline
+## Work in two parts
+
+- [Part 1 — attack and analyze; Part 2 — defend and secure the build](PARTS.md)
+- [Step-by-step demo video script](script.md)
+
+The `main` branch preserves the vulnerable baseline for before/after evidence.
+The `security-remediation` branch contains the fixed application and secure
+build.
+
+## Run the secure branch
 
 Set the team identifier before the first build and keep it unchanged throughout
 the project:
 
 ```bash
 export TEAM_ID=REVIVE
+export APP_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
 docker compose up --build
 ```
 
@@ -34,6 +44,16 @@ Stop the application with:
 
 ```bash
 docker compose down
+```
+
+Run the local verification suite with:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m pytest -q
+.venv/bin/bandit -r app.py -lll
+.venv/bin/pip-audit -r requirements.lock --disable-pip
 ```
 
 ## Project deliverables
