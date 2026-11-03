@@ -1,0 +1,73 @@
+name: Security CI
+
+on:
+  push:
+    branches: [main, security-remediation]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test-sast-sca:
+    name: Tests, SAST and SCA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.lock
+            requirements-dev.txt
+      - name: Install hash-locked runtime and pinned security tools
+        run: |
+          python -m pip install --require-hashes -r requirements.lock
+          python -m pip install pytest==9.2.0 bandit==1.9.4 pip-audit==2.10.1 cyclonedx-bom==7.6.0
+      - name: Security regression tests
+        run: python -m pytest -q
+      - name: SAST gate — fail on HIGH severity
+        run: bandit -r app.py -lll
+      - name: SCA gate — fail on a known vulnerable dependency
+        run: pip-audit -r requirements.lock --disable-pip
+      - name: Reproduce and validate CycloneDX SBOM
+        run: |
+          cyclonedx-py requirements requirements.lock --pyproject pyproject.toml --spec-version 1.6 --output-format JSON --output-reproducible --output-file /tmp/sbom.cdx.json --validate
+          python -c "import json; data=json.load(open('/tmp/sbom.cdx.json')); assert data['specVersion']=='1.6' and data['metadata']['component']['name']=='revive-notevault' and len(data['components']) > 0"
+
+  secret-scan:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Gitleaks gate
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  container-scan:
+    name: Container HIGH/CRITICAL gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build hardened image
+        run: docker build --tag notevault:ci .
+      - name: Trivy image gate
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: notevault:ci
+          format: table
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+

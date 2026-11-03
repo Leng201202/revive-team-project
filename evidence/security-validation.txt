@@ -1,0 +1,32 @@
+Security remediation validation — 3 November 2026
+
+1. Regression suite
+   Command: .venv/bin/python -m pytest -q
+   Result: 21 passed
+
+2. SAST
+   Command: .venv/bin/bandit -r app.py -lll
+   Result: No issues identified; HIGH=0, MEDIUM=0, LOW=0
+
+3. SCA
+   Command: .venv/bin/pip-audit -r requirements.lock --disable-pip
+   Result: No known vulnerabilities found
+
+4. CycloneDX SBOM
+   File: supply-chain/sbom.cdx.json
+   Spec: CycloneDX 1.6
+   Components: 9
+   Schema validation: passed
+
+5. Container build/runtime
+   Build: docker build --tag notevault:secure-test .
+   Build result: passed with --require-hashes
+   Runtime identity: uid=10001(notevault) gid=10001(notevault)
+   Read-only root filesystem: true
+   Dropped capabilities: ALL
+   no-new-privileges: true
+   GET / health response: HTTP 200 with CSP, HSTS, nosniff, DENY frame,
+   no-referrer, no-store, and Secure/HttpOnly/SameSite=Strict CSRF cookie
+
+This is local validation evidence. GitHub Actions screenshots and Cosign OIDC
+verification must come from the real remote workflow runs.
