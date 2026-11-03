@@ -26,3 +26,11 @@ venv/
 
 # Generated local evidence that may contain sensitive data
 evidence/private/
+
+# Demo/runtime output
+data/
+*.jar
+login.html
+dist/
+cosign.key
+cosign-verify.txt
