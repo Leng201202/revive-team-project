@@ -9,8 +9,14 @@ the course-provided local test credentials.
 ```bash
 cd /Users/khunzee_dev/Desktop/revive-team-project
 git status
+export TEAM_ID=REVIVE
+export APP_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
 docker compose down
 ```
+
+Keep this terminal open throughout the demo so the generated secret remains
+available. The command sets the secret without printing it; do not echo it while
+recording. Compose requires `APP_SECRET` even for `docker compose down`.
 
 Prepare these browser tabs/files:
 
@@ -104,11 +110,10 @@ docker compose down
 ```bash
 git switch security-remediation
 export TEAM_ID=REVIVE
-export APP_SECRET=REVIVE-demo-only-random-secret-please-change-123456789
-docker compose up -d --build
+docker compose up -d --build --wait --wait-timeout 120
 ```
 
-Get the CSRF token and log in normally:
+After the health check passes, get the CSRF token and log in normally:
 
 ```bash
 curl -s -c secure.jar http://localhost:8080/ -o login.html
