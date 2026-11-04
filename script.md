@@ -7,7 +7,7 @@ the course-provided local test credentials.
 ## Before recording
 
 ```bash
-cd /Users/leng/Desktop/SoftwareSecurity/revive-notevault-secure-build
+cd /Users/khunzee_dev/Desktop/revive-team-project
 git status
 docker compose down
 ```
