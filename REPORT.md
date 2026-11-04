@@ -509,10 +509,10 @@ Workflow: [`.github/workflows/security.yml`](.github/workflows/security.yml).
 | Container SCA | Trivy | Any fixed HIGH or CRITICAL OS/library vulnerability |
 | SBOM | CycloneDX | Generation, JSON check, or schema validation fails |
 
-The workflow runs on pushes to `main`/`security-remediation` and pull requests
-to `main`. Before submission, capture one deliberately failing temporary-branch
-run and the final passing run as screenshots; do not weaken the gates simply to
-obtain green status.
+The workflow runs on pushes to `main`, `security-remediation`, and `dev`, and on
+pull requests to `main`. Before submission, capture one deliberately failing
+temporary-branch run and the final passing run as screenshots; do not weaken the
+gates simply to obtain green status.
 
 ---
 
