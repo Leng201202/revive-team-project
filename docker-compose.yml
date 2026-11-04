@@ -1,31 +1,14 @@
 services:
   notevault:
     build: .
-    image: notevault:${TEAM_ID:-REVIVE}-secure
-    init: true
-    read_only: true
     ports:
-      - "127.0.0.1:8080:8080"
+      - "8080:8080"
     environment:
-      TEAM_ID: ${TEAM_ID:-REVIVE}
-      TEAM_SALT: ${TEAM_SALT:-notevault-anti-copy-dev-salt}
-      APP_SECRET: ${APP_SECRET:?Set APP_SECRET to at least 32 random characters}
-      NOTEVAULT_DB: /data/notevault.db
-      COOKIE_SECURE: "true"
-    volumes:
-      - notevault-data:/data
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,size=16m
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/', timeout=2)"]
-      interval: 15s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
-
-volumes:
-  notevault-data:
+      # Set your real team ID before building (see project/README.md) — this seeds a
+      # per-team traceable marker into the app's data, same purpose as the per-student
+      # flags used in the weekly labs. TEAM_SALT stays instructor-side in a real cohort.
+      - TEAM_ID=${TEAM_ID:-REVIVE}
+      - TEAM_SALT=${TEAM_SALT:-notevault-anti-copy-dev-salt}
+    # For quick iteration you can mount the source:
+    # volumes:
+    #   - ./:/app
