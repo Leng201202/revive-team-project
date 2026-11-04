@@ -159,6 +159,24 @@ All findings verified live against the Docker container
 `threat-model/01-problems.md` for plain-language explanations and
 `evidence/` for artifacts.
 
+**Numbering note.** Threat-model problems (`P-XX`, 20 total) are ordered by
+category in `01-problems.md`; findings (`F-XX`, 19 total) are ordered by
+severity/discovery. Every problem maps to exactly one finding; F-10 covers two
+problems. Full mapping:
+
+| Finding | Problem | Finding | Problem |
+|---|---|---|---|
+| F-01 RCE `/export` | P-08 | F-11 No rate limiting | P-11 |
+| F-02 SQLi login | P-04 | F-12 No CSRF | P-15 |
+| F-03 UNION search | P-06 | F-13 `debug=True` | P-16 |
+| F-04 `role=admin` | P-01 | F-14 Vulnerable deps | P-18 |
+| F-05 Duplicate admin | P-02 | F-15 Dockerfile | P-17 |
+| F-06 JWT forgery | P-03 | F-16 No logging | P-19 |
+| F-07 IDOR | P-05 | F-17 `seed()` wipes | P-20 |
+| F-08 `/admin` hashes | P-07 | F-18 Unsalted MD5 | P-10 |
+| F-09 Stored XSS | P-09 | F-19 Plain HTTP | P-14 |
+| F-10 Cookie/JWT | P-12 + P-13 | | |
+
 ### Finding F-01 — OS command injection via `/export?fmt=` (RCE as root)
 | Field | Value |
 |---|---|
@@ -443,27 +461,27 @@ and browser cookie controls reduce theft and cross-site use.
 
 ### Finding-to-fix traceability
 
-| Finding | Implemented control | Regression proof |
+| Finding | Problem | Implemented control | Regression proof |
 |---|---|---|
-| F-01 | Removed `subprocess` and `shell=True`; `txt/json` allow-list | `test_f01_export_command_injection_is_rejected` |
-| F-02 | Parameterized login query and constant-time-style dummy hash check | `test_f02_login_sql_injection_fails` |
-| F-03 | Parameterized `LIKE`, escaped wildcards, fixed template | `test_f03_search_union_injection_fails` |
-| F-04 | Server always inserts role `user` | `test_f04_registration_ignores_attacker_role` |
-| F-05 | `UNIQUE COLLATE NOCASE` username constraint | `test_f05_duplicate_admin_registration_is_blocked` |
-| F-06 | Runtime 32+ character key; HS256 only; required claims | `test_f06_forged_jwt_with_old_secret_is_rejected` |
-| F-07 | Note query includes authenticated owner | `test_f07_idor_returns_not_found_for_another_users_note` |
-| F-08 | Admin DTO selects only id, username, role | `test_f08_admin_response_excludes_password_hash` |
-| F-09 | Jinja autoescaping plus restrictive CSP | `test_f09_stored_xss_is_escaped` |
-| F-10 | 15-minute JWT, audience/issuer/JTI, revocation, cookie flags | `test_f10_session_has_flags_claims_and_logout_revokes` |
-| F-11 | Five failures/minute/IP limiter with 429/Retry-After | `test_f11_login_rate_limit_returns_429` |
-| F-12 | Double-submit CSRF token and Origin validation on every POST | `test_f12_csrf_is_required_and_origin_checked` |
-| F-13 | Gunicorn entry point, generic 500 response, debug disabled | `test_f13_debug_disabled_and_errors_are_generic` |
-| F-14 | Current direct pins plus complete SHA-256 lockfile | `test_f14_dependencies_are_upgraded`; `pip-audit` clean |
-| F-15 | Digest pin, non-root UID, read-only FS, dropped capabilities, narrow COPY | `test_f15_dockerfile_is_hardened` |
-| F-16 | Authentication, admin, CSRF, export, and note audit events | `test_f16_security_events_are_logged` |
-| F-17 | `CREATE TABLE IF NOT EXISTS`, seed only when empty, named volume | `test_f17_database_initialization_preserves_existing_data` |
-| F-18 | Werkzeug salted `scrypt` password hashes | `test_weak_md5_password_storage_is_replaced` |
-| F-19 | Loopback-only container binding, Secure cookie and HSTS; TLS required at deployment edge | `test_security_headers_are_present`; deployment check |
+| F-01 | P-08 | Removed `subprocess` and `shell=True`; `txt/json` allow-list | `test_f01_export_command_injection_is_rejected` |
+| F-02 | P-04 | Parameterized login query and constant-time-style dummy hash check | `test_f02_login_sql_injection_fails` |
+| F-03 | P-06 | Parameterized `LIKE`, escaped wildcards, fixed template | `test_f03_search_union_injection_fails` |
+| F-04 | P-01 | Server always inserts role `user` | `test_f04_registration_ignores_attacker_role` |
+| F-05 | P-02 | `UNIQUE COLLATE NOCASE` username constraint | `test_f05_duplicate_admin_registration_is_blocked` |
+| F-06 | P-03 | Runtime 32+ character key; HS256 only; required claims | `test_f06_forged_jwt_with_old_secret_is_rejected` |
+| F-07 | P-05 | Note query includes authenticated owner | `test_f07_idor_returns_not_found_for_another_users_note` |
+| F-08 | P-07 | Admin DTO selects only id, username, role | `test_f08_admin_response_excludes_password_hash` |
+| F-09 | P-09 | Jinja autoescaping plus restrictive CSP | `test_f09_stored_xss_is_escaped` |
+| F-10 | P-12+P-13 | 15-minute JWT, audience/issuer/JTI, revocation, cookie flags | `test_f10_session_has_flags_claims_and_logout_revokes` |
+| F-11 | P-11 | Five failures/minute/IP limiter with 429/Retry-After | `test_f11_login_rate_limit_returns_429` |
+| F-12 | P-15 | Double-submit CSRF token and Origin validation on every POST | `test_f12_csrf_is_required_and_origin_checked` |
+| F-13 | P-16 | Gunicorn entry point, generic 500 response, debug disabled | `test_f13_debug_disabled_and_errors_are_generic` |
+| F-14 | P-18 | Current direct pins plus complete SHA-256 lockfile | `test_f14_dependencies_are_upgraded`; `pip-audit` clean |
+| F-15 | P-17 | Digest pin, non-root UID, read-only FS, dropped capabilities, narrow COPY | `test_f15_dockerfile_is_hardened` |
+| F-16 | P-19 | Authentication, admin, CSRF, export, and note audit events | `test_f16_security_events_are_logged` |
+| F-17 | P-20 | `CREATE TABLE IF NOT EXISTS`, seed only when empty, named volume | `test_f17_database_initialization_preserves_existing_data` |
+| F-18 | P-10 | Werkzeug salted `scrypt` password hashes | `test_weak_md5_password_storage_is_replaced` |
+| F-19 | P-14 | Loopback-only container binding, Secure cookie and HSTS; TLS required at deployment edge | `test_security_headers_are_present`; deployment check |
 
 Local verification on 3 November 2026: **21 tests passed**, Bandit reported
 zero findings, and pip-audit reported **no known vulnerabilities**.
