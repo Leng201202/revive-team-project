@@ -61,14 +61,14 @@ jobs:
           persist-credentials: false
       - name: Build hardened image
         run: docker build --tag notevault:ci .
+      - name: Install Trivy (direct binary)
+        run: |
+          curl -sfL "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_Linux-64bit.tar.gz" -o /tmp/trivy.tar.gz
+          tar -xzf /tmp/trivy.tar.gz -C /tmp trivy
+          sudo mv /tmp/trivy /usr/local/bin/
+          trivy --version
       - name: Trivy image gate
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: notevault:ci
-          version: v0.76.1
-          format: table
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-          exit-code: "1"
+        run: >
+          trivy image --exit-code 1 --format table --ignore-unfixed
+          --vuln-type os,library --severity HIGH,CRITICAL notevault:ci
 
