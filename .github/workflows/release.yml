@@ -58,7 +58,7 @@ jobs:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: release-security-evidence
           path: |
