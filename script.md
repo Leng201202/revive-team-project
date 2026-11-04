@@ -24,13 +24,13 @@ on macOS/Linux and require Docker Desktop with Compose v2, Python 3, curl, and
 jq. Start Docker Desktop first. Save and commit your work before switching
 branches; `git status --short` should be empty.
 
-The current `main` branch contains the fixed application. The original
-vulnerable baseline is preserved at commit `79f8a12`. The commands below switch
-temporarily to that exact commit and then return to `main`.
+The `main` branch contains the vulnerable baseline. The fixed application and
+all secure-build deliverables are on `security-remediation`. The commands below
+switch between those two branches for the before-and-after demonstration.
 
 ```bash
 cd /Users/leng/Desktop/SoftwareSecurity/revive-notevault-secure-build
-git switch main
+git switch security-remediation
 git status --short
 docker compose version
 python3 -m venv .venv
@@ -49,8 +49,8 @@ Prepare these browser tabs/files:
 
 - `REPORT.md`
 - `threat-model/02-dataflow.md`
-- vulnerable source shown with `git show 79f8a12:app.py`
-- fixed `app.py` on `main`
+- vulnerable `app.py` on `main`
+- fixed `app.py` on `security-remediation`
 - the passing GitHub Security CI run
 - the signed-release run and `cosign-verify.txt` artifact
 
@@ -90,7 +90,7 @@ running.
 ## 1:30–3:15 — Attack the vulnerable baseline
 
 ```bash
-git switch --detach 79f8a12
+git switch main
 export TEAM_ID=REVIVE
 docker compose up -d --build
 docker compose ps
@@ -145,7 +145,7 @@ limited to this local course container.
 # Person 2 — Root cause and remediation (3:15–6:15)
 
 Person 2 starts with the vulnerable app still running, explains the root cause,
-stops it, switches back to secure `main`, and proves the attacks are blocked.
+stops it, switches to `security-remediation`, and proves the attacks are blocked.
 
 ## 3:15–4:20 — Root cause in code
 
@@ -162,7 +162,7 @@ Stop the baseline:
 
 ```bash
 docker compose down
-git switch main
+git switch security-remediation
 ```
 
 ## 4:20–6:15 — Show the fixes and failed attacks
@@ -359,7 +359,7 @@ a private browser window to confirm it opens without an access request.
 | Login returns `429` | Wait at least 60 seconds before another attempt. |
 | Secure attack checks return `401` | The session is missing or expired; repeat normal login before testing export and IDOR. |
 | Secure build fails its health check | Inspect `docker compose logs --tail=50 notevault` off camera, resolve the error, and retry. |
-| `.venv/bin/python` is missing | Switch to `main` and run the virtual-environment setup from the preparation section. |
+| `.venv/bin/python` is missing | Switch to `security-remediation` and run the virtual-environment setup from the preparation section. |
 | Branch switch reports local changes | Save and commit your intended changes before continuing; do not discard them to run the demo. |
 
 The cookie jars and `login.html` stay inside the temporary `$DEMO_TMP`
