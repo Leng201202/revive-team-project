@@ -528,9 +528,17 @@ Workflow: [`.github/workflows/security.yml`](.github/workflows/security.yml).
 | SBOM | CycloneDX | Generation, JSON check, or schema validation fails |
 
 The workflow runs on pushes to `main`, `security-remediation`, and `dev`, and on
-pull requests to `main`. Before submission, capture one deliberately failing
-temporary-branch run and the final passing run as screenshots; do not weaken the
-gates simply to obtain green status.
+pull requests to `main`.
+
+**Passing run** — all three jobs green on `dev`:
+
+![Security CI passing run](evidence/img/ci-pass.png)
+
+**Failing gate** — the container gate blocked a run when the Trivy check could
+not complete (kept as proof the pipeline fails closed rather than skipping the
+scan):
+
+![Container gate failing](evidence/img/ci-fail-trivy.png)
 
 ---
 
