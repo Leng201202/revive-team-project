@@ -42,10 +42,9 @@ against the six STRIDE categories (✓ = credible threat on the baseline).
 - `debug=True` → Werkzeug debugger exposure (potential RCE) and verbose error leakage
 - No CSRF protection on `/notes`, `/login`, `/register`
 - Container runs as root; base image unpinned; `APP_SECRET` baked into image layer
-- Outdated dependencies (`requirements.txt`) with known CVEs — covered in Phase 2/SCA
+- Outdated baseline dependencies (`requirements.txt`) with known CVEs — confirmed in `evidence/F-14.txt`
 - No logging or audit trail anywhere → R (repudiation) applies globally
 - No security headers (CSP, X-Frame-Options) → clickjacking + XSS impact amplification
-- No CSRF protection on `/notes`, `/login`, `/register`
 
 ## Abuse cases (attacker personas)
 
