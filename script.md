@@ -1,21 +1,8 @@
-# NoteVault three-person demo video script
+# NoteVault demo video script
 
 Target length: **8–10 minutes**. Show the terminal and relevant source/report
 side by side. Never show a real token, private key, or account credential beyond
 the course-provided local test credentials.
-
-## Three-person split
-
-| Person | Time | Responsibility |
-|---|---:|---|
-| **Person 1 — Panaikron** | 0:00–3:15 | Introduction, threat model, and successful attacks against the baseline |
-| **Person 2 — Sai** | 3:15–6:15 | Root causes, remediated code, and proof that the attacks now fail |
-| **Person 3 — Zaw** | 6:15–9:20 | Tests, SAST/SCA, container, SBOM, CI, signing, provenance, and conclusion |
-
-Record the sections separately if needed, but use one shared terminal session
-for the command sequence. Person 3 combines the recordings into the final
-video. Each person should rehearse their own narration and the handoff to the
-next person.
 
 ## Before recording
 
@@ -24,20 +11,19 @@ on macOS/Linux and require Docker Desktop with Compose v2, Python 3, curl, and
 jq. Start Docker Desktop first. Save and commit your work before switching
 branches; `git status --short` should be empty.
 
-The current `main` branch contains the fixed application. The original
-vulnerable baseline is preserved at commit `79f8a12`. The commands below switch
-temporarily to that exact commit and then return to `main`.
+The vulnerable baseline is on `main`; the fixed application is currently on
+`dev`. The remote `security-remediation` branch still contains baseline code,
+so do not use it for the fixed demonstration unless the team updates it first.
 
 ```bash
-cd /Users/leng/Desktop/SoftwareSecurity/revive-notevault-secure-build
-git switch main
-git status --short
+cd /Users/khunzee_dev/Desktop/revive-team-project
+git status
+git switch dev
 docker compose version
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
 export TEAM_ID=REVIVE
 export APP_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
-export DEMO_TMP="$(mktemp -d /tmp/notevault-demo.XXXXXX)"
 docker compose down
 ```
 
@@ -49,20 +35,14 @@ Prepare these browser tabs/files:
 
 - `REPORT.md`
 - `threat-model/02-dataflow.md`
-- vulnerable source shown with `git show 79f8a12:app.py`
-- fixed `app.py` on `main`
+- vulnerable `app.py` on `main`
+- fixed `app.py` on `dev`
 - the passing GitHub Security CI run
 - the signed-release run and `cosign-verify.txt` artifact
 
 Increase terminal font size and use a fresh browser session for each version.
 Keep the same `TEAM_ID=REVIVE` throughout. The login commands below show only
 HTTP status codes; cookie jars hold session tokens and should stay off camera.
-
-# Person 1 — Attack and threat analysis (0:00–3:15)
-
-Person 1 performs the introduction, threat model, and all successful baseline
-attacks. Hand over to Person 2 while the vulnerable application is still
-running.
 
 ## 0:00–0:40 — Introduction
 
@@ -90,7 +70,7 @@ running.
 ## 1:30–3:15 — Attack the vulnerable baseline
 
 ```bash
-git switch --detach 79f8a12
+git switch main
 export TEAM_ID=REVIVE
 docker compose up -d --build
 docker compose ps
@@ -104,11 +84,11 @@ Log in and prove command execution:
 
 ```bash
 curl -sS -o /dev/null -w 'Normal login: HTTP %{http_code}\n' \
-  -c "$DEMO_TMP/alice.jar" -X POST http://localhost:8080/login \
+  -c alice.jar -X POST http://localhost:8080/login \
   --data-urlencode "username=alice" \
   --data-urlencode "password=alicepw"
 
-curl -s -b "$DEMO_TMP/alice.jar" -G http://localhost:8080/export \
+curl -s -b alice.jar -G http://localhost:8080/export \
   --data-urlencode "fmt=txt;id"
 ```
 
@@ -118,11 +98,11 @@ Then demonstrate SQL-injection login bypass and IDOR:
 
 ```bash
 curl -sS -o /dev/null -w 'SQL injection login: HTTP %{http_code}\n' \
-  -c "$DEMO_TMP/bypass.jar" -X POST http://localhost:8080/login \
+  -c bypass.jar -X POST http://localhost:8080/login \
   --data-urlencode "username=alice'--" \
   --data-urlencode "password=wrong"
 
-curl -s -b "$DEMO_TMP/bypass.jar" http://localhost:8080/api/notes/2
+curl -s -b bypass.jar http://localhost:8080/api/notes/2
 ```
 
 **Expected:** both logins return `302`. The second login succeeds despite the
@@ -135,17 +115,6 @@ limited to this local course container.
 > container runs as root. Login input is concatenated into SQL, so the comment
 > sequence removes the password check. Once authenticated as Alice, changing
 > the note number returns the admin's note because the API never checks owner.
-
-**Handoff:**
-
-> I have demonstrated command injection, SQL-injection authentication bypass,
-> and IDOR against the original baseline. Sai will now show their root causes
-> and demonstrate the remediated application.
-
-# Person 2 — Root cause and remediation (3:15–6:15)
-
-Person 2 starts with the vulnerable app still running, explains the root cause,
-stops it, switches back to secure `main`, and proves the attacks are blocked.
 
 ## 3:15–4:20 — Root cause in code
 
@@ -162,12 +131,12 @@ Stop the baseline:
 
 ```bash
 docker compose down
-git switch main
 ```
 
 ## 4:20–6:15 — Show the fixes and failed attacks
 
 ```bash
+git switch dev
 export TEAM_ID=REVIVE
 docker compose up -d --build --wait --wait-timeout 120
 ```
@@ -175,13 +144,10 @@ docker compose up -d --build --wait --wait-timeout 120
 After the health check passes, get the CSRF token and log in normally:
 
 ```bash
-curl -s -c "$DEMO_TMP/secure.jar" http://localhost:8080/ \
-  -o "$DEMO_TMP/login.html"
-CSRF=$(sed -n 's/.*name="csrf_token" value="\([^"]*\)".*/\1/p' \
-  "$DEMO_TMP/login.html" | head -1)
+curl -s -c secure.jar http://localhost:8080/ -o login.html
+CSRF=$(sed -n 's/.*name="csrf_token" value="\([^"]*\)".*/\1/p' login.html | head -1)
 curl -sS -o /dev/null -w 'Secure login: HTTP %{http_code}\n' \
-  -b "$DEMO_TMP/secure.jar" -c "$DEMO_TMP/secure.jar" \
-  -X POST http://localhost:8080/login \
+  -b secure.jar -c secure.jar -X POST http://localhost:8080/login \
   --data-urlencode "username=alice" \
   --data-urlencode "password=alicepw" \
   --data-urlencode "csrf_token=$CSRF"
@@ -196,7 +162,7 @@ Repeat the SQL-injection login with a valid CSRF token:
 
 ```bash
 curl -sS -o /dev/null -w 'Secure SQL injection login: HTTP %{http_code}\n' \
-  -b "$DEMO_TMP/secure.jar" -X POST http://localhost:8080/login \
+  -b secure.jar -X POST http://localhost:8080/login \
   --data-urlencode "username=alice'--" \
   --data-urlencode "password=wrong" \
   --data-urlencode "csrf_token=$CSRF"
@@ -208,10 +174,10 @@ the existing legitimate Alice session remains available for the next checks.
 Repeat the command injection and IDOR attacks:
 
 ```bash
-curl -i -b "$DEMO_TMP/secure.jar" -G http://localhost:8080/export \
+curl -i -b secure.jar -G http://localhost:8080/export \
   --data-urlencode "fmt=txt;id"
 
-curl -i -b "$DEMO_TMP/secure.jar" http://localhost:8080/api/notes/2
+curl -i -b secure.jar http://localhost:8080/api/notes/2
 ```
 
 **Point out:** the responses are `400 unsupported export format` and `404 not
@@ -220,8 +186,8 @@ found`; there is no command output or admin note.
 Prove legitimate behavior still works:
 
 ```bash
-curl -i -b "$DEMO_TMP/secure.jar" http://localhost:8080/api/notes/1
-curl -i -b "$DEMO_TMP/secure.jar" -G http://localhost:8080/export \
+curl -i -b secure.jar http://localhost:8080/api/notes/1
+curl -i -b secure.jar -G http://localhost:8080/export \
   --data-urlencode "fmt=txt"
 ```
 
@@ -242,17 +208,6 @@ curl -i -b "$DEMO_TMP/secure.jar" -G http://localhost:8080/export \
 > note data. Registration always chooses the user role. Sessions use a runtime
 > key, HS256 only, required audience, issuer, expiry, and JTI claims, revocation,
 > and HttpOnly, Secure, SameSite Strict cookies.
-
-**Handoff:**
-
-> The same attacks now return 401, 400, and 404, while legitimate requests
-> still return 200. Zaw will now verify the tests, hardened container, SBOM,
-> security pipeline, signing, and provenance.
-
-# Person 3 — Secure build and delivery evidence (6:15–9:20)
-
-Person 3 runs the automated checks, shows the supply-chain controls, presents
-the GitHub evidence, gives the conclusion, and assembles the final recording.
 
 ## 6:15–7:10 — Regression and security validation
 
@@ -359,9 +314,8 @@ a private browser window to confirm it opens without an access request.
 | Login returns `429` | Wait at least 60 seconds before another attempt. |
 | Secure attack checks return `401` | The session is missing or expired; repeat normal login before testing export and IDOR. |
 | Secure build fails its health check | Inspect `docker compose logs --tail=50 notevault` off camera, resolve the error, and retry. |
-| `.venv/bin/python` is missing | Switch to `main` and run the virtual-environment setup from the preparation section. |
+| `.venv/bin/python` is missing | Switch to `dev` and run the virtual-environment setup from the preparation section. |
 | Branch switch reports local changes | Save and commit your intended changes before continuing; do not discard them to run the demo. |
 
-The cookie jars and `login.html` stay inside the temporary `$DEMO_TMP`
-directory. Avoid `docker compose down -v` during the demo: it deletes the
-secure app's persistent database volume.
+Keep cookie jars and `login.html` local. Avoid `docker compose down -v` during
+the demo: it deletes the secure app's persistent database volume.
