@@ -11,18 +11,18 @@ against the six STRIDE categories (✓ = credible threat on the baseline).
 
 | # | Element / data flow | S | T | R | I | D | E | Top threat & mitigation |
 |---|---|---|---|---|---|---|---|---|
-| 1 | F1 login/register (credentials in transit) | ✓ | | | ✓ | | | Sniffed credentials over plaintext HTTP → TLS |
-| 2 | No rate limiting / lockout (API4 — unrestricted resource consumption) | ✓ | | | | ✓ | | Unlimited `/login` attempts → credential brute force; unbounded requests/notes/`export` → exhaustion → rate limit + lockout + size caps |
-| 3 | P1 auth logic (`/login`, `/register`) | ✓ | ✓ | | | | ✓ | SQLi auth bypass + client-set `role=admin` + **no UNIQUE(username)** → re-register `admin` with own password also yields admin. Parameterised queries, fixed role, UNIQUE constraint |
-| 4 | F2/F3 session JWT cookie | ✓ | ✓ | | ✓ | | ✓ | Hardcoded weak `SECRET` → forged admin HS256 token (verified → `/admin` dump); `alg=none` whitelisted but blocked by PyJWT's key-guard; **no `exp`/`aud`** → token never expires, stateless logout can't revoke theft; no HttpOnly/Secure → XSS theft. Pin `HS256`, env secret, require `exp`/`aud`, cookie flags |
-| 5 | P2 notes create/render | | ✓ | | ✓ | | | Stored XSS via `notes_html\|safe` → output encoding, CSP |
-| 6 | P6 `GET /api/notes/<id>` | | | | ✓ | | | IDOR/BOLA — no owner check, any note readable → enforce `owner = current_user` |
-| 7 | P3 `GET /search` | | ✓ | | ✓ | | | SQLi via `q` (UNION dump of users+notes) → parameterised LIKE |
-| 8 | P4 `GET /admin` | | | | ✓ | | | Excessive data exposure — leaks every user's MD5 hash → never return hashes; strong KDF |
-| 9 | F7 export → OS shell | | ✓ | | ✓ | ✓ | ✓ | Command injection via `fmt` (`;id`, `;sleep 999`) → RCE + DoS. Remove `shell=True`, whitelist fmt |
-| 10 | D1/D2 SQLite store | | ✓ | | ✓ | ✓ | | Tamper/dump via upstream SQLi; `/tmp` file; `seed()` drops all data on every restart → least-privilege FS, no raw SQL, persistent volume |
-| 11 | Password storage (MD5, no salt) | | | | ✓ | | | Offline cracking of dumped hashes → bcrypt/argon2 + salt |
-| 12 | TB4 container/host (Dockerfile, `debug=True`) | | | | ✓ | | ✓ | Root process + baked `APP_SECRET` + unpinned base + Werkzeug debugger (interactive console → potential RCE) → non-root, runtime secrets, pin digest, debug off |
+| 1 | `F1 (TB1)` — login/register credentials in transit | ✓ | | | ✓ | | | Sniffed credentials over plaintext HTTP → TLS |
+| 2 | `P1 / F1 (TB1)` — `/login` rate & resource limits (API4) | ✓ | | | | ✓ | | Unlimited `/login` attempts → credential brute force; unbounded requests/notes/`export` → exhaustion → rate limit + lockout + size caps |
+| 3 | `P1 / F5 (TB2)` — auth logic (`/login`, `/register`) | ✓ | ✓ | | | | ✓ | SQLi auth bypass + client-set `role=admin` + **no UNIQUE(username)** → re-register `admin` with own password also yields admin. Parameterised queries, fixed role, UNIQUE constraint |
+| 4 | `D3 / F2–F3 (TB1)` — session JWT cookie | ✓ | ✓ | | ✓ | | ✓ | Hardcoded weak `SECRET` → forged admin HS256 token (verified → `/admin` dump); `alg=none` whitelisted but blocked by PyJWT's key-guard; **no `exp`/`aud`** → token never expires, stateless logout can't revoke theft; no HttpOnly/Secure → XSS theft. Pin `HS256`, env secret, require `exp`/`aud`, cookie flags |
+| 5 | `P2 / F4 (TB2)` — notes create/render (`GET /`, `POST /notes`) | | ✓ | | ✓ | | | Stored XSS via `notes_html\|safe` → output encoding, CSP |
+| 6 | `P6 / F4 (TB2)` — `GET /api/notes/<id>` | | | | ✓ | | | IDOR/BOLA — no owner check, any note readable → enforce `owner = current_user` |
+| 7 | `P3 / F4 (TB2)` — `GET /search` | | ✓ | | ✓ | | | SQLi via `q` (UNION dump of users+notes) → parameterised LIKE |
+| 8 | `P4 / F6 / F9 (TB1–TB2)` — `GET /admin` | | | | ✓ | | | Excessive data exposure — leaks every user's MD5 hash → never return hashes; strong KDF |
+| 9 | `P5 → P7 / F7 (TB3)` — `/export` → OS shell | | ✓ | | ✓ | ✓ | ✓ | Command injection via `fmt` (`;id`, `;sleep 999`) → RCE + DoS. Remove `shell=True`, whitelist fmt |
+| 10 | `D1 / D2 (TB2)` — SQLite store (`users`, `notes`) | | ✓ | | ✓ | ✓ | | Tamper/dump via upstream SQLi; `/tmp` file; `seed()` drops all data on every restart → least-privilege FS, no raw SQL, persistent volume |
+| 11 | `D1` — `users` password store (MD5, no salt) | | | | ✓ | | | Offline cracking of dumped hashes → slow salted KDF (`scrypt`/argon2/bcrypt) |
+| 12 | `P0 / D4 / F8 (TB4)` — Container & runtime (`Dockerfile`, `debug=True`) | | | | ✓ | | ✓ | Root process + baked `APP_SECRET` + unpinned base + Werkzeug debugger (interactive console → potential RCE) → non-root, runtime secrets, pin digest, debug off |
 
 ## Top 5 risks (likelihood × impact)
 

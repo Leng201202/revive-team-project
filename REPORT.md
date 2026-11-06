@@ -11,7 +11,7 @@
 | Members (name + ID) | Panaikron Marohabut (6631503126), Sai Shang Hlang (6631503129), Zaw Phyo Aung (6631503130) |
 | Target application | NoteVault (Python/Flask) |
 | Repository URL | https://github.com/Leng201202/revive-team-project |
-| Demo video URL | **Add the unlisted YouTube/Drive URL after recording with `script.md`.** |
+| Demo video URL | https://drive.google.com/drive/folders/16AqdnTP3pqreXMjkiBqHHQrdOx-edOY5 |
 | Date | 3 November 2026 |
 
 ## AI-tool usage disclosure
@@ -107,9 +107,11 @@ flowchart LR
     APP -. "F8 env vars" .-> ENV
 ```
 
-**Trust boundaries:** TB1 = client ↔ server (F1, F3, F7-input, F9) · TB2 = app
-↔ SQLite (F4–F6) · TB3 = app ↔ OS shell (F7) · TB4 = container ↔ host/image
-(F8, runtime config).
+**Trust boundaries:** 
+- TB1 = client ↔ server (F1, F3, F7-input, F9)  
+- TB2 = app ↔ SQLite (F4–F6) 
+- TB3 = app ↔ OS shell (F7) 
+- TB4 = container ↔ host/image (F8, runtime config).
 
 ---
 
@@ -119,18 +121,18 @@ Full write-up in [`threat-model/03-stride.md`](threat-model/03-stride.md).
 
 | Element / data flow | S | T | R | I | D | E | Top threat & mitigation |
 |---|---|---|---|---|---|---|---|
-| F1 login/register (credentials in transit) | ✓ | | | ✓ | | | Sniffed credentials over plaintext HTTP → TLS |
-| No rate limiting / lockout | ✓ | | | | ✓ | | Brute force + resource exhaustion → rate limit, lockout, size caps |
-| P1 auth logic (/login, /register) | ✓ | ✓ | | | | ✓ | SQLi bypass + client-set `role` + duplicate `admin` (no UNIQUE) → parameterised queries, fixed role, constraint |
-| F2/F3 session JWT cookie | ✓ | ✓ | | ✓ | | ✓ | `alg=none` + hardcoded secret → forgery; no `exp` → no expiry/revocation; no flags → XSS theft. Pin HS256, env secret, `exp`/`aud`, flags |
-| P2 notes create/render | | ✓ | | ✓ | | | Stored XSS via `notes_html\|safe` → output encoding, CSP |
-| P6 GET /api/notes/<id> | | | | ✓ | | | IDOR/BOLA — no owner check → enforce `owner = current_user` |
-| P3 GET /search | | ✓ | | ✓ | | | SQLi via `q` → parameterised LIKE |
-| P4 GET /admin | | | | ✓ | | | Excessive data exposure — all MD5 hashes → never return hashes; strong KDF |
-| F7 export → OS shell | | ✓ | | ✓ | ✓ | ✓ | Command injection via `fmt` → RCE + DoS. Drop `shell=True`, whitelist |
-| D1/D2 SQLite store | | ✓ | | ✓ | ✓ | | Tamper/dump via SQLi; `seed()` wipes data each restart → least-privilege FS, persistent volume |
-| Password storage (MD5, no salt) | | | | ✓ | | | Offline cracking → bcrypt/argon2 + salt |
-| Container/host (Dockerfile, debug=True) | | | | ✓ | | ✓ | Root + baked secret + unpinned base + debugger → non-root, runtime secrets, pin, debug off |
+| `F1 (TB1)` — login/register credentials in transit | ✓ | | | ✓ | | | Sniffed credentials over plaintext HTTP → TLS |
+| `P1 / F1 (TB1)` — `/login` rate & resource limits | ✓ | | | | ✓ | | Brute force + resource exhaustion → rate limit, lockout, size caps |
+| `P1 / F5 (TB2)` — auth logic (`/login`, `/register`) | ✓ | ✓ | | | | ✓ | SQLi bypass + client-set `role` + duplicate `admin` (no UNIQUE) → parameterised queries, fixed role, constraint |
+| `D3 / F2–F3 (TB1)` — session JWT cookie | ✓ | ✓ | | ✓ | | ✓ | `alg=none` whitelisted + hardcoded secret → forgery; no `exp` → no expiry/revocation; no flags → XSS theft. Pin HS256, env secret, `exp`/`aud`, flags |
+| `P2 / F4 (TB2)` — notes create/render (`GET /`, `POST /notes`) | | ✓ | | ✓ | | | Stored XSS via `notes_html\|safe` → output encoding, CSP |
+| `P6 / F4 (TB2)` — `GET /api/notes/<id>` | | | | ✓ | | | IDOR/BOLA — no owner check → enforce `owner = current_user` |
+| `P3 / F4 (TB2)` — `GET /search` | | ✓ | | ✓ | | | SQLi via `q` → parameterised LIKE |
+| `P4 / F6 / F9 (TB1–TB2)` — `GET /admin` | | | | ✓ | | | Excessive data exposure — all MD5 hashes → never return hashes; strong KDF |
+| `P5 → P7 / F7 (TB3)` — `/export` → OS shell | | ✓ | | ✓ | ✓ | ✓ | Command injection via `fmt` → RCE + DoS. Drop `shell=True`, whitelist |
+| `D1 / D2 (TB2)` — SQLite store (`users`, `notes`) | | ✓ | | ✓ | ✓ | | Tamper/dump via SQLi; `seed()` wipes data each restart → least-privilege FS, persistent volume |
+| `D1` — `users` password store (MD5, no salt) | | | | ✓ | | | Offline cracking → slow salted KDF (`scrypt`/argon2/bcrypt) |
+| `P0 / D4 / F8 (TB4)` — Container & runtime (`Dockerfile`, `debug=True`) | | | | ✓ | | ✓ | Root + baked secret + unpinned base + debugger → non-root, runtime secrets, pin, debug off |
 
 *Global note: there is no logging anywhere, so Repudiation applies to every
 flow in principle; we call it out where it matters most.*
@@ -164,24 +166,34 @@ category in `01-problems.md`; findings (`F-XX`, 19 total) are ordered by
 severity/discovery. Every problem maps to exactly one finding; F-10 covers two
 problems. Full mapping:
 
-| Finding | Problem | Finding | Problem |
+| Problem ID | Problem Description (Threat Model) | Mapped Finding | Severity |
 |---|---|---|---|
-| F-01 RCE `/export` | P-08 | F-11 No rate limiting | P-11 |
-| F-02 SQLi login | P-04 | F-12 No CSRF | P-15 |
-| F-03 UNION search | P-06 | F-13 `debug=True` | P-16 |
-| F-04 `role=admin` | P-01 | F-14 Vulnerable deps | P-18 |
-| F-05 Duplicate admin | P-02 | F-15 Dockerfile | P-17 |
-| F-06 JWT forgery | P-03 | F-16 No logging | P-19 |
-| F-07 IDOR | P-05 | F-17 `seed()` wipes | P-20 |
-| F-08 `/admin` hashes | P-07 | F-18 Unsalted MD5 | P-10 |
-| F-09 Stored XSS | P-09 | F-19 Plain HTTP | P-14 |
-| F-10 Cookie/JWT | P-12 + P-13 | | |
+| `P-01` | Self-made admin at signup (`role=admin` mass assignment on `/register`) | `F-04` | High |
+| `P-02` | Duplicate `admin` registration allowed (no `UNIQUE` constraint on `username`) | `F-05` | High |
+| `P-03` | Forged JWT session token via hardcoded `SECRET` in source code | `F-06` | High |
+| `P-04` | SQL injection authentication bypass on `POST /login` | `F-02` | Critical |
+| `P-05` | IDOR / BOLA — read other users' private notes via `GET /api/notes/<id>` | `F-07` | High |
+| `P-06` | SQL injection UNION query dumps entire `users` table via `GET /search` | `F-03` | Critical |
+| `P-07` | Excessive data exposure — `GET /admin` returns all users' password hashes | `F-08` | High |
+| `P-08` | OS command injection (RCE as root) via `GET /export?fmt=` with `shell=True` | `F-01` | Critical |
+| `P-09` | Stored XSS in note title/body via `notes_html\|safe` | `F-09` | High |
+| `P-10` | Passwords hashed with fast, unsalted MD5 | `F-18` | High |
+| `P-11` | Unlimited password guesses — no rate limiting or lockout on `/login` | `F-11` | Medium |
+| `P-12` | JWT session token never expires (`no exp`) and logout cannot revoke it | `F-10` | Medium |
+| `P-13` | Session cookie missing `HttpOnly`, `Secure`, and `SameSite` flags | `F-10` | Medium |
+| `P-14` | Plaintext HTTP transport (no TLS termination) | `F-19` | Medium |
+| `P-15` | No CSRF tokens or `Origin`/`Referer` validation on state-changing POSTs | `F-12` | Medium |
+| `P-16` | Flask `debug=True` enabled in container (Werkzeug debugger exposure) | `F-13` | High |
+| `P-17` | Dockerfile misconfigurations (runs as root, baked secret, unpinned base/pip) | `F-15` | High |
+| `P-18` | Outdated dependencies in `requirements.txt` with 81 known CVEs | `F-14` | High |
+| `P-19` | No security logging or audit trail anywhere in the application | `F-16` | Medium |
+| `P-20` | `seed()` unconditionally drops and recreates tables on every restart | `F-17` | Low |
 
 ### Finding F-01 — OS command injection via `/export?fmt=` (RCE as root)
 | Field | Value |
 |---|---|
-| CWE | CWE-78 |
-| OWASP 2025 | A05 |
+| CWE | CWE-78 (OS Command Injection) |
+| OWASP 2025 | A05 (Injection) |
 | Severity | Critical |
 | Location | `app.py:202-203`, `GET /export` |
 | Reproduction | `GET /export?fmt=txt;id` → `uid=0(root)`; `fmt=txt;cat /etc/passwd` dumps passwd; `fmt=txt;env` leaks `APP_SECRET`, `TEAM_ID`, `TEAM_SALT` |
@@ -191,8 +203,8 @@ problems. Full mapping:
 ### Finding F-02 — SQL injection: authentication bypass on `/login`
 | Field | Value |
 |---|---|
-| CWE | CWE-89 |
-| OWASP 2025 | A05 |
+| CWE | CWE-89 (SQL Injection) |
+| OWASP 2025 | A05 (Injection) |
 | Severity | Critical |
 | Location | `app.py:128-129`, `POST /login` |
 | Reproduction | `POST /login` with `username=alice'--` and any `password` → `302` + session cookie issued |
@@ -202,8 +214,8 @@ problems. Full mapping:
 ### Finding F-03 — SQL injection: UNION dump via `/search`
 | Field | Value |
 |---|---|
-| CWE | CWE-89 |
-| OWASP 2025 | A05 |
+| CWE | CWE-89 (SQL Injection) |
+| OWASP 2025 | A05 (Injection) |
 | Severity | Critical |
 | Location | `app.py:178`, `GET /search?q=` |
 | Reproduction | `GET /search?q=' UNION SELECT id,username,password FROM users--` returns every user's MD5 hash as "search results" |
@@ -213,8 +225,8 @@ problems. Full mapping:
 ### Finding F-04 — Privilege escalation via mass-assigned `role` on `/register`
 | Field | Value |
 |---|---|
-| CWE | CWE-915 / CWE-266 |
-| OWASP 2025 | A01 + API3 |
+| CWE | CWE-915 (Mass Assignment) / CWE-266 (Incorrect Privilege Assignment) |
+| OWASP 2025 | A01 (Broken Access Control) + API3 (Broken Object Property Level Authorization) |
 | Severity | High |
 | Location | `app.py:114`, `POST /register` |
 | Reproduction | `POST /register` with `username=mallory&password=pw123&role=admin` → new account reaches `/admin` |
@@ -224,8 +236,8 @@ problems. Full mapping:
 ### Finding F-05 — Duplicate `admin` registration (no UNIQUE constraint)
 | Field | Value |
 |---|---|
-| CWE | CWE-269 |
-| OWASP 2025 | A01 |
+| CWE | CWE-269 (Improper Privilege Management) |
+| OWASP 2025 | A01 (Broken Access Control) |
 | Severity | High |
 | Location | `app.py:64` (schema), `app.py:91` (`role_of()`) |
 | Reproduction | Re-register `admin`/`myownpw` → login with own password → `role_of()` returns the *real* admin's role → `/admin` access |
@@ -235,8 +247,8 @@ problems. Full mapping:
 ### Finding F-06 — JWT forgery via hardcoded `SECRET`
 | Field | Value |
 |---|---|
-| CWE | CWE-321 (hardcoded key), CWE-347 |
-| OWASP 2025 | A07 |
+| CWE | CWE-321 (Hard-coded Cryptographic Key) / CWE-347 (Improper Signature Verification) |
+| OWASP 2025 | A07 (Authentication Failures) |
 | Severity | High |
 | Location | `app.py:23,83` |
 | Reproduction | `jwt.encode({'sub':'admin'}, 'notevault-dev-secret', algorithm='HS256')` → forged cookie reaches `/admin`. (Note: `alg=none` is whitelisted but blocked by PyJWT 1.7.1's key-guard — the working attack is key theft.) |
@@ -246,8 +258,8 @@ problems. Full mapping:
 ### Finding F-07 — IDOR on `GET /api/notes/<id>`
 | Field | Value |
 |---|---|
-| CWE | CWE-639 |
-| OWASP 2025 | A01 + API1 |
+| CWE | CWE-639 (IDOR / User-Controlled Key Authorization Bypass) |
+| OWASP 2025 | A01 (Broken Access Control) + API1 (Broken Object Level Authorization) |
 | Severity | High |
 | Location | `app.py:163-166` |
 | Reproduction | As `alice`: `GET /api/notes/2` → admin's `infra` note ("prod db password is hunter2"); `/api/notes/3` → `build-tag` marker |
@@ -257,8 +269,8 @@ problems. Full mapping:
 ### Finding F-08 — Excessive data exposure on `/admin`
 | Field | Value |
 |---|---|
-| CWE | CWE-200 / CWE-359 |
-| OWASP 2025 | API3 |
+| CWE | CWE-200 (Sensitive Information Exposure) / CWE-359 (Private Information Exposure) |
+| OWASP 2025 | API3 (Broken Object Property Level Authorization) |
 | Severity | High |
 | Location | `app.py:191` |
 | Reproduction | Any admin-reachable path (F-04/05/06) → `GET /admin` returns `password` column (MD5 hashes) for all users |
@@ -268,8 +280,8 @@ problems. Full mapping:
 ### Finding F-09 — Stored XSS in note title/body
 | Field | Value |
 |---|---|
-| CWE | CWE-79 |
-| OWASP 2025 | A05 |
+| CWE | CWE-79 (Cross-site Scripting — XSS) |
+| OWASP 2025 | A05 (Injection) |
 | Severity | High |
 | Location | `app.py:43,104-106,181-182` (`notes_html\|safe`) |
 | Reproduction | `POST /notes` with `body=<script>alert(document.cookie)</script>` → every viewer executes it; cookie readable (no HttpOnly) |
@@ -279,8 +291,8 @@ problems. Full mapping:
 ### Finding F-10 — Session cookie missing flags + JWT never expires
 | Field | Value |
 |---|---|
-| CWE | CWE-1004 / CWE-614 / CWE-613 |
-| OWASP 2025 | A05 / A07 |
+| CWE | CWE-1004 (Cookie Without HttpOnly) / CWE-614 (Cookie Without Secure) / CWE-613 (Insufficient Session Expiration) |
+| OWASP 2025 | A05 (Injection) / A07 (Authentication Failures) |
 | Severity | Medium |
 | Location | `app.py:134,136` |
 | Reproduction | `Set-Cookie: session=…; Path=/` — no `HttpOnly`, `Secure`, `SameSite`; payload `{"sub":"alice"}` has no `exp`/`aud`; logout deletes only the client copy |
@@ -290,8 +302,8 @@ problems. Full mapping:
 ### Finding F-11 — No rate limiting / lockout
 | Field | Value |
 |---|---|
-| CWE | CWE-307 |
-| OWASP 2025 | API4 |
+| CWE | CWE-307 (Brute-Force / Excessive Auth Attempts) |
+| OWASP 2025 | API4 (Unrestricted Resource Consumption) |
 | Severity | Medium |
 | Location | `app.py:123-137`, `POST /login` |
 | Reproduction | 30+ rapid failed logins → all `401`, no delay or lockout |
@@ -301,8 +313,8 @@ problems. Full mapping:
 ### Finding F-12 — No CSRF protection
 | Field | Value |
 |---|---|
-| CWE | CWE-352 |
-| OWASP 2025 | A01 |
+| CWE | CWE-352 (Cross-Site Request Forgery — CSRF) |
+| OWASP 2025 | A01 (Broken Access Control) |
 | Severity | Medium |
 | Location | `app.py:147-155` (`/notes`, `/login`, `/register`) |
 | Reproduction | `POST /notes` with `Origin: http://evil.example` → `302` accepted; no token or Origin/Referer check |
@@ -312,8 +324,8 @@ problems. Full mapping:
 ### Finding F-13 — `debug=True` → Werkzeug debugger exposure
 | Field | Value |
 |---|---|
-| CWE | CWE-489 / CWE-215 |
-| OWASP 2025 | A02 |
+| CWE | CWE-489 (Active Debug Code) / CWE-215 (Sensitive Info in Debug Output) |
+| OWASP 2025 | A02 (Security Misconfiguration) |
 | Severity | High |
 | Location | `app.py:209` |
 | Reproduction | `GET /search?q='` → `sqlite3.OperationalError` → full traceback page with interactive console ("execute arbitrary Python code") |
@@ -323,8 +335,8 @@ problems. Full mapping:
 ### Finding F-14 — Vulnerable dependencies (known CVEs)
 | Field | Value |
 |---|---|
-| CWE | CWE-1395 |
-| OWASP 2025 | A03 |
+| CWE | CWE-1395 (Vulnerable Third-Party Component) |
+| OWASP 2025 | A03 (Software Supply Chain Failures) |
 | Severity | High |
 | Location | `requirements.txt` |
 | Reproduction | `pip-audit -r requirements.txt` → **81 known vulnerabilities in 7 packages** (Flask 2.0.1, Werkzeug 2.0.1, Jinja2 3.0.1, PyJWT 1.7.1, requests 2.25.1, urllib3 1.26.4, idna 2.10) |
@@ -334,8 +346,8 @@ problems. Full mapping:
 ### Finding F-15 — Dockerfile misconfigurations
 | Field | Value |
 |---|---|
-| CWE | CWE-250 (root), CWE-798 (baked secret), CWE-1357 |
-| OWASP 2025 | A02 |
+| CWE | CWE-250 (Execution with Unnecessary Privileges) / CWE-798 (Hard-coded Credentials) / CWE-1357 (Unpinned / Untrusted Component) |
+| OWASP 2025 | A02 (Security Misconfiguration) |
 | Severity | High |
 | Location | `Dockerfile` |
 | Reproduction | `docker history` → `ENV APP_SECRET=notevault-dev-secret` visible in layer; `docker exec … whoami` → `root`; `FROM python:3.12` unpinned; `COPY . .` drags whole context; `pip install` without `--require-hashes` |
@@ -345,8 +357,8 @@ problems. Full mapping:
 ### Finding F-16 — No logging or audit trail
 | Field | Value |
 |---|---|
-| CWE | CWE-778 |
-| OWASP 2025 | A09 |
+| CWE | CWE-778 (Insufficient Logging) |
+| OWASP 2025 | A09 (Security Logging and Alerting Failures) |
 | Severity | Medium |
 | Location | `app.py` (no `logging` anywhere) |
 | Reproduction | After the full attack session, `docker logs` shows only werkzeug access lines — no auth events, no alerts, no audit |
@@ -356,8 +368,8 @@ problems. Full mapping:
 ### Finding F-17 — `seed()` drops all data on every restart
 | Field | Value |
 |---|---|
-| CWE | CWE-664 (improper resource lifetime control) |
-| OWASP 2025 | A06 |
+| CWE | CWE-664 (Improper Resource Lifetime Control) |
+| OWASP 2025 | A06 (Insecure Design) |
 | Severity | Low |
 | Location | `app.py:63,208` |
 | Reproduction | `docker restart` → `/admin` shows only the 2 seed users; all registered accounts/notes gone |
@@ -367,8 +379,8 @@ problems. Full mapping:
 ### Finding F-18 — Passwords stored with fast, unsalted MD5
 | Field | Value |
 |---|---|
-| CWE | CWE-916 / CWE-327 |
-| OWASP 2025 | A04 |
+| CWE | CWE-916 (Weak Password Hash Effort) / CWE-327 (Broken Cryptographic Algorithm) |
+| OWASP 2025 | A04 (Cryptographic Failures) |
 | Severity | High |
 | Location | Baseline `app.py:68-69,117` |
 | Reproduction | The baseline stores `hashlib.md5(password.encode()).hexdigest()`; known inputs reproduce the exact database hashes without a per-user salt |
@@ -378,8 +390,8 @@ problems. Full mapping:
 ### Finding F-19 — Plain HTTP transport
 | Field | Value |
 |---|---|
-| CWE | CWE-319 |
-| OWASP 2025 | A04 |
+| CWE | CWE-319 (Cleartext Transmission) |
+| OWASP 2025 | A04 (Cryptographic Failures) |
 | Severity | Medium |
 | Location | Baseline `app.py:209`, `docker-compose.yml:5-6` |
 | Reproduction | The Flask server listens without TLS on `http://0.0.0.0:8080`, and Compose publishes that port directly |
@@ -397,57 +409,68 @@ SBOM, CI, signing, and provenance controls are in `38ecdba` (`F-14`, `F-15`,
 
 ### Representative before/after changes
 
-**F-01 — remove the OS command interpreter:**
+#### F-01 — Remove the OS command interpreter
 
 ```diff
+# --- BEFORE (Vulnerable: unvalidated shell execution) ---
 - out = subprocess.run("echo exporting notes as " + fmt, shell=True, ...)
+
+# +++ AFTER (Fixed: strict allow-list + parameterized query in Python) +++
 + if output_format not in {"txt", "json"}:
 +     return "unsupported export format", 400
 + rows = get_db().execute("SELECT ... WHERE owner = ?", (current_user(),))
 ```
 
-No attacker input reaches a shell. Export formats are an exact allow-list and
-the response is generated in Python.
+> **Why this fixes it:** No attacker input reaches a shell. Export formats are an exact allow-list and the response is generated in Python.
 
-**F-02/F-03 — parameterize SQL:**
+#### F-02/F-03 — Parameterize SQL
 
 ```diff
+# --- BEFORE (Vulnerable: raw string interpolation) ---
 - q = "SELECT * FROM users WHERE username = '%s' ..." % username
 - row = con.execute(q).fetchone()
+
+# +++ AFTER (Fixed: parameterized query with bound parameters) +++
 + row = get_db().execute(
 +     "SELECT username, password_hash FROM users WHERE username = ?", (username,)
 + ).fetchone()
 ```
 
-Input remains data instead of becoming SQL grammar. Search also escapes the
-`LIKE` wildcard characters before using a bound parameter.
+> **Why this fixes it:** Input remains data instead of becoming SQL grammar. Search also escapes the `LIKE` wildcard characters before using a bound parameter.
 
-**F-07 — enforce object ownership in the query:**
+#### F-07 — Enforce object ownership in the query
 
 ```diff
+# --- BEFORE (Vulnerable: no owner check) ---
 - SELECT id,owner,title,body FROM notes WHERE id = ?
+
+# +++ AFTER (Fixed: enforce authenticated owner) +++
 + SELECT id,owner,title,body FROM notes WHERE id = ? AND owner = ?
 ```
 
-The database returns a note only when both its identifier and authenticated
-owner match.
+> **Why this fixes it:** The database returns a note only when both its identifier and authenticated owner match.
 
-**F-09 — restore Jinja output encoding:**
+#### F-09 — Restore Jinja output encoding
 
 ```diff
+# --- BEFORE (Vulnerable: autoescaping disabled via |safe) ---
 - {{ notes_html|safe }}
+
+# +++ AFTER (Fixed: automatic Jinja HTML escaping) +++
 + {% for note in notes %}{{ note.title }}: {{ note.body }}{% endfor %}
 ```
 
-Titles and bodies are passed as template data and automatically HTML-escaped;
-the CSP is a second layer of defense.
+> **Why this fixes it:** Titles and bodies are passed as template data and automatically HTML-escaped; the CSP is a second layer of defense.
 
-**F-06/F-10 — secure and bound the session:**
+#### F-06/F-10 — Secure and bound the session
 
 ```diff
+# --- BEFORE (Vulnerable: hardcoded secret, alg=none allowed, no claims/cookie flags) ---
 - SECRET = "notevault-dev-secret"
 - jwt.decode(token, SECRET, algorithms=["HS256", "none"])
 - resp.set_cookie("session", token)
+
+# +++ AFTER (Fixed: runtime secret, pinned HS256 + required claims, strict cookie flags) +++
 + jwt.decode(token, runtime_secret, algorithms=["HS256"],
 +            audience="notevault-web", issuer="notevault",
 +            options={"require": ["sub", "iat", "exp", "jti", "aud", "iss"]})
@@ -455,33 +478,31 @@ the CSP is a second layer of defense.
 +                 samesite="Strict", max_age=900)
 ```
 
-The key is supplied only at runtime, the algorithm and claims are pinned, each
-token expires after 15 minutes, logout stores its `jti` in a revocation table,
-and browser cookie controls reduce theft and cross-site use.
+> **Why this fixes it:** The key is supplied only at runtime, the algorithm and claims are pinned, each token expires after 15 minutes, logout stores its `jti` in a revocation table, and browser cookie controls reduce theft and cross-site use.
 
 ### Finding-to-fix traceability
 
-| Finding | Problem | Implemented control | Regression proof |
-|---|---|---|
-| F-01 | P-08 | Removed `subprocess` and `shell=True`; `txt/json` allow-list | `test_f01_export_command_injection_is_rejected` |
-| F-02 | P-04 | Parameterized login query and constant-time-style dummy hash check | `test_f02_login_sql_injection_fails` |
-| F-03 | P-06 | Parameterized `LIKE`, escaped wildcards, fixed template | `test_f03_search_union_injection_fails` |
-| F-04 | P-01 | Server always inserts role `user` | `test_f04_registration_ignores_attacker_role` |
-| F-05 | P-02 | `UNIQUE COLLATE NOCASE` username constraint | `test_f05_duplicate_admin_registration_is_blocked` |
-| F-06 | P-03 | Runtime 32+ character key; HS256 only; required claims | `test_f06_forged_jwt_with_old_secret_is_rejected` |
-| F-07 | P-05 | Note query includes authenticated owner | `test_f07_idor_returns_not_found_for_another_users_note` |
-| F-08 | P-07 | Admin DTO selects only id, username, role | `test_f08_admin_response_excludes_password_hash` |
-| F-09 | P-09 | Jinja autoescaping plus restrictive CSP | `test_f09_stored_xss_is_escaped` |
-| F-10 | P-12+P-13 | 15-minute JWT, audience/issuer/JTI, revocation, cookie flags | `test_f10_session_has_flags_claims_and_logout_revokes` |
-| F-11 | P-11 | Five failures/minute/IP limiter with 429/Retry-After | `test_f11_login_rate_limit_returns_429` |
-| F-12 | P-15 | Double-submit CSRF token and Origin validation on every POST | `test_f12_csrf_is_required_and_origin_checked` |
-| F-13 | P-16 | Gunicorn entry point, generic 500 response, debug disabled | `test_f13_debug_disabled_and_errors_are_generic` |
-| F-14 | P-18 | Current direct pins plus complete SHA-256 lockfile | `test_f14_dependencies_are_upgraded`; `pip-audit` clean |
-| F-15 | P-17 | Digest pin, non-root UID, read-only FS, dropped capabilities, narrow COPY | `test_f15_dockerfile_is_hardened` |
-| F-16 | P-19 | Authentication, admin, CSRF, export, and note audit events | `test_f16_security_events_are_logged` |
-| F-17 | P-20 | `CREATE TABLE IF NOT EXISTS`, seed only when empty, named volume | `test_f17_database_initialization_preserves_existing_data` |
-| F-18 | P-10 | Werkzeug salted `scrypt` password hashes | `test_weak_md5_password_storage_is_replaced` |
-| F-19 | P-14 | Loopback-only container binding, Secure cookie and HSTS; TLS required at deployment edge | `test_security_headers_are_present`; deployment check |
+| Finding | Vulnerability | Implemented control | Regression proof |
+|---|---|---|---|
+| `F-01` | OS command injection (`/export`) | Removed `subprocess` and `shell=True`; `txt/json` allow-list | `test_f01_export_command_injection_is_rejected` |
+| `F-02` | SQLi login bypass (`/login`) | Parameterized login query and constant-time-style dummy hash check | `test_f02_login_sql_injection_fails` |
+| `F-03` | SQLi UNION dump (`/search`) | Parameterized `LIKE`, escaped wildcards, fixed template | `test_f03_search_union_injection_fails` |
+| `F-04` | Mass-assigned `role=admin` (`/register`) | Server always inserts role `user` | `test_f04_registration_ignores_attacker_role` |
+| `F-05` | Duplicate `admin` registration | `UNIQUE COLLATE NOCASE` username constraint | `test_f05_duplicate_admin_registration_is_blocked` |
+| `F-06` | JWT forgery via hardcoded `SECRET` | Runtime 32+ character key; HS256 only; required claims | `test_f06_forged_jwt_with_old_secret_is_rejected` |
+| `F-07` | IDOR on `GET /api/notes/<id>` | Note query includes authenticated owner | `test_f07_idor_returns_not_found_for_another_users_note` |
+| `F-08` | Excessive data exposure (`/admin` hashes) | Admin DTO selects only id, username, role | `test_f08_admin_response_excludes_password_hash` |
+| `F-09` | Stored XSS in note title/body | Jinja autoescaping plus restrictive CSP | `test_f09_stored_xss_is_escaped` |
+| `F-10` | Missing cookie flags + non-expiring JWT | 15-minute JWT, audience/issuer/JTI, revocation, cookie flags | `test_f10_session_has_flags_claims_and_logout_revokes` |
+| `F-11` | No login rate limiting / lockout | Five failures/minute/IP limiter with 429/Retry-After | `test_f11_login_rate_limit_returns_429` |
+| `F-12` | No CSRF protection on state-changing POSTs | Double-submit CSRF token and Origin validation on every POST | `test_f12_csrf_is_required_and_origin_checked` |
+| `F-13` | `debug=True` Werkzeug debugger exposure | Gunicorn entry point, generic 500 response, debug disabled | `test_f13_debug_disabled_and_errors_are_generic` |
+| `F-14` | Vulnerable dependencies (81 CVEs) | Current direct pins plus complete SHA-256 lockfile | `test_f14_dependencies_are_upgraded`; `pip-audit` clean |
+| `F-15` | Dockerfile misconfigurations | Digest pin, non-root UID, read-only FS, dropped capabilities, narrow COPY | `test_f15_dockerfile_is_hardened` |
+| `F-16` | No security logging or audit trail | Authentication, admin, CSRF, export, and note audit events | `test_f16_security_events_are_logged` |
+| `F-17` | `seed()` drops all data on every restart | `CREATE TABLE IF NOT EXISTS`, seed only when empty, named volume | `test_f17_database_initialization_preserves_existing_data` |
+| `F-18` | Unsalted fast MD5 password storage | Werkzeug salted `scrypt` password hashes | `test_weak_md5_password_storage_is_replaced` |
+| `F-19` | Plaintext HTTP transport | Loopback-only container binding, Secure cookie and HSTS; TLS required at deployment edge | `test_security_headers_are_present`; deployment check |
 
 Local verification on 3 November 2026: **21 tests passed**, Bandit reported
 zero findings, and pip-audit reported **no known vulnerabilities**.
