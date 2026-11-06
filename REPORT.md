@@ -42,8 +42,8 @@ headers, audit events, non-destructive persistent database initialization, and
 21 regression tests. The build now uses hash-locked current dependencies, a
 digest-pinned base image, a non-root/read-only container, a CycloneDX SBOM, and
 CI gates for SAST, SCA, secret scanning, and HIGH/CRITICAL container findings.
-Residual deployment risks are TLS termination, the single-process in-memory
-rate limiter, and completion of the external GitHub tag/sign/video steps.
+Residual deployment risks are TLS termination and the single-process
+in-memory rate limiter.
 
 ---
 
