@@ -522,10 +522,22 @@ zero findings, and pip-audit reported **no known vulnerabilities**.
   GitHub build provenance, verifies the signature, and uploads
   `cosign-verify.txt` as evidence.
 
-**Signing status:** repository automation is complete; the signature itself is
-created only when a team member pushes a `v*` tag. After that run, download the
-`release-security-evidence` artifact and add its `cosign-verify.txt` output or
-screenshot here. Do not claim the image is signed before that workflow passes.
+**Signature verification** — release tag `v1.0.0` triggered the
+[Signed release run](https://github.com/Leng201202/revive-team-project/actions/runs/42173635831)
+(commit `ad8f538`). `cosign verify` against
+`ghcr.io/leng201202/revive-team-project@sha256:501eee84a4dfe6004610f7e8158c7b4772071fe874cc8c3e8c030539799f5fc7`
+succeeded for **both** the keyless signature and the attached CycloneDX
+attestation. Output from `cosign-verify.txt` (`release-security-evidence`
+artifact):
+
+```text
+[{"critical":{"identity":{"docker-reference":"ghcr.io/leng201202/revive-team-project@sha256:501eee84a4dfe6004610f7e8158c7b4772071fe874cc8c3e8c030539799f5fc7"},"image":{"docker-manifest-digest":"sha256:501eee84a4dfe6004610f7e8158c7b4772071fe874cc8c3e8c030539799f5fc7"},"type":"https://cyclonedx.org/bom"},"optional":{}},{"critical":{"identity":{"docker-reference":"ghcr.io/leng201202/revive-team-project@sha256:501eee84a4dfe6004610f7e8158c7b4772071fe874cc8c3e8c030539799f5fc7"},"image":{"docker-manifest-digest":"sha256:501eee84a4dfe6004610f7e8158c7b4772071fe874cc8c3e8c030539799f5fc7"},"type":"https://sigstore.dev/cosign/sign/v1"},"optional":{}}]
+```
+
+GitHub build provenance attestation:
+<https://github.com/Leng201202/revive-team-project/attestations/64374787>
+
+![Signed release workflow success](evidence/img/release-sign.png)
 
 **SLSA self-assessment:** the tagged GitHub build targets **SLSA Build Level 2**:
 the build runs on a hosted build service and produces authenticated provenance
@@ -611,4 +623,4 @@ the demo video.
 | CI pipeline — works, fails build appropriately (§7) | 10 |
 | Presentation & report clarity (§1, §8) | 5 |
 
-*All work stays within the [ethics policy](../ETHICS.md).*
+*All work was performed within the course ethics policy.*
