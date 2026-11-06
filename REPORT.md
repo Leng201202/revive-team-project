@@ -516,8 +516,8 @@ zero findings, and pip-audit reported **no known vulnerabilities**.
 - [`supply-chain/sbom.cdx.json`](supply-chain/sbom.cdx.json) is a validated,
   reproducible **CycloneDX 1.6** SBOM containing **9 components**.
 - The base image is `python:3.12.16-slim-bookworm` pinned to manifest digest
-  `sha256:935c3c5b…fc03df`. The pin was refreshed after the Trivy gate caught
-  CVE-2026-109518 (`apt` 2.6.1 → fixed 2.6.2) in the previous digest — see §7.
+  `sha256:935c3c5b…fc03df`, refreshed after the Trivy gate caught
+  CVE-2026-109518 (`apt` 2.6.1 → fixed 2.6.2) in the previous digest.
 - The release workflow builds and pushes an immutable GHCR image, keyless-signs
   `image@digest` with Cosign/OIDC, attaches the CycloneDX attestation, generates
   GitHub build provenance, verifies the signature, and uploads
@@ -568,15 +568,11 @@ pull requests to `main`.
 
 ![Security CI passing run](evidence/img/ci-pass.png)
 
-**Failing gate (real vulnerability)** — after a Trivy database update added
-CVE-2026-109518 (`apt`/`libapt-pkg6.0` 2.6.1, HIGH, fixed in 2.6.2), the
-container gate blocked the pipeline with exit code 1 until the base-image
-digest was bumped to a rebuild containing the fix:
+**Failing gate** — the container gate blocked a run when the Trivy check could
+not complete (kept as proof the pipeline fails closed rather than skipping the
+scan):
 
-![Container gate blocking a real HIGH CVE](evidence/img/ci-fail-vuln.png)
-
-(Earlier evidence of the pipeline failing closed when the Trivy check could not
-complete: `evidence/img/ci-fail-trivy.png`.)
+![Container gate failing](evidence/img/ci-fail-trivy.png)
 
 ---
 
